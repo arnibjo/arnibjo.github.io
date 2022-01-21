@@ -8,13 +8,13 @@ window.onload = function init()
     gl = WebGLUtils.setupWebGL( canvas );
     if ( !gl ) { alert( "WebGL isn't available" ); }
 
-    var vertices = new Float32Array([ 0.75, 0.25,
-                                      0.75, 0,
+    var vertices = new Float32Array([ 0,0,
                                       0,  0.25,
+                                      0.75, 0,
+                                      0.75, 0.25,
                                       1,  0.25,
-                                      1, 0,
-                                      0.5, -1,
                                       0.25, -1,
+                                      0.5,-1,
                                     ]);
 
     //  Configure WebGL
