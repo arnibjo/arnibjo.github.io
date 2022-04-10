@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Pac-man</title>
+	</head>
+	<body>
+		<h3 id="score">Score: 0<h3/>
+        <canvas id="c"  width="800" height="800"></canvas>
+		<script src="js/three.js"></script>
+        <script src="js/examples/js/controls/OrbitControls.js"></script>
+		<script>
+			var dir = 3;
+			var newDir = 3;
+			var ballX = 0;
+			var ballz = 0;
+			var next = 38;
+			var curr = 39;
+			var gridUp = 0;
+			var gridDown = 1;
+			var gridLeft = 2;
+			var gridRight = 3;
+			var gridX = 4;
+			var gridZ = 5;
+			var updatedDir = false;
+			var stopped = false;
+			var selectedCamera;
+			var rev = 40;
+			var pmSpeed = 0.04;
+			var gSpeed = 0.04;
+			var score = 0;
+			var nextGhost = 28;
+			var currGhost = 29;
+			var revGhost = 29;
+			var dirGhost = 3;
+			var gameOver = false;
+			var isPowerupUsed = [];
+
+      // Ná í striga
+      const canvas = document.querySelector('#c');
+			const scoreDiv = document.getElementById('score');
+
+      // Skilgreina sviðsnet
+			const scene = new THREE.Scene();
+            scene.background = new THREE.Color('skyblue');
+
+      // Skilgreina myndavél og staðsetja hana
+			const camera = new THREE.PerspectiveCamera( 50, canvas.clientWidth/canvas.clientHeight, 0.1, 30);
+			camera.position.set(2, 1, 0);
+			camera.lookAt(-200,0,0);
+
+			// Skilgreina myndavél 2
+			const camera2 = new THREE.PerspectiveCamera( 50, canvas.clientWidth/canvas.clientHeight, 0.1, 30);
+			camera2.position.set(-0.5, 0.4, 0);
+			camera2.lookAt(-200,0,0);
+
+			selectedCamera = camera2;
+
+      // Skilgreina birtingaraðferð með afbjögun (antialias)
+			const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+
+			// hnit veggja
+			var mapWalls = [
+				[22, 0.2,0,3],
+    		[22, 0.2,0,-7],
+				[0.2, 10,-11,-2],
+				[0.2, 10,11,-2],
+    		[6, 0.2,0,1],
+    		[6, 0.2,0,-1],
+				[6, 0.2,0,-5],
+				[2, 0.2,2,-3],
+				[2, 0.2,-2,-3],
+				[0.2, 2,-3,-2],
+				[0.2, 2,3,-2],
+				[2, 0.2,6,-1],
+				[2, 0.2,-6,-1],
+				[2, 0.2,6,-3],
+				[2, 0.2,-6,-3],
+				[0.2, 2,-5,2],
+				[0.2, 2,5,2],
+				[0.2, 2,-5,-6],
+				[0.2, 2,5,-6],
+				[0.2, 2,9,0],
+				[0.2, 2,-9,0],
+				[0.2, 2,9,-4],
+				[0.2, 2,-9,-4],
+				[2, 0.2,8,-5],
+				[2, 0.2,-8,-5],
+				[2, 0.2,8,1],
+				[2, 0.2,-8,1],
+			];
+
+			// grind heimsins
+			const mapGrid = [
+				[0, 12, 0, 2, -10, -6],
+				[0, 0, 1, 3, -8, -6],
+				[0, 14, 2, 0, -6, -6],
+				[0, 15, 0, 5, -4, -6],
+				[0, 0, 4, 6, -2, -6],// 5
+				[0, 0, 5, 7, 0, -6],
+				[0, 0, 6, 8, 2, -6],
+				[0, 19, 7, 0, 4, -6],
+				[0, 20, 0, 10, 6, -6],
+				[0, 0, 9, 11, 8, -6],// 10
+				[0, 22, 10, 0, 10, -6],
+				[1, 23, 0, 0, -10, -4],
+				[0, 24, 0, 14, -8, -4],
+				[3, 0, 13, 15, -6, -4],
+				[4, 26, 14, 16, -4, -4],// 15
+				[0, 0, 15, 17, -2, -4],
+				[0, 28, 16, 18, 0, -4],
+				[0, 0, 17, 19, 2, -4],
+				[8, 30, 18, 20, 4, -4],
+				[9, 0, 19, 21, 6, -4],// 20
+				[0, 32, 20, 0, 8, -4],
+				[11, 33, 0, 0, 10, -4],
+				[12, 34, 0, 24, -10, -2],
+				[13, 35, 23, 25, -8, -2],
+				[0, 0, 24, 26, -6, -2],// 25
+				[15, 37, 25, 0, -4, -2],
+				[0, 0, 0, 28, -2, -2],
+				[17, 0, 27, 29, 0, -2],
+				[0, 0, 28, 0, 2, -2],
+				[19, 41, 0, 31, 4, -2],// 30
+				[0, 0, 30, 32, 6, -2],
+				[21, 43, 31, 33, 8, -2],
+				[22, 44, 32, 0, 10, -2],
+				[23, 45, 0, 0, -10, 0],
+				[24, 0, 0, 36, -8, 0],// 35
+				[0, 47, 35, 37, -6, 0],
+				[26, 48, 36, 38, -4, 0],
+				[0, 0, 37, 39, -2, 0],
+				[0, 0, 38, 40, 0, 0],
+				[0, 0, 39, 41, 2, 0],// 40
+				[30, 52, 40, 42, 4, 0],
+				[0, 53, 41, 43, 6, 0],
+				[32, 0, 42, 0, 8, 0],
+				[33, 55, 0, 0, 10, 0],
+				[34, 0, 0, 46, -10, 2],// 45
+				[0, 0, 45, 47, -8, 2],
+				[36, 0, 46, 0, -6, 2],
+				[37, 0, 0, 49, -4, 2],
+				[0, 0, 48, 50, -2, 2],
+				[0, 0, 49, 51, 0, 2],// 50
+				[0, 0, 50, 52, 2, 2],
+				[41, 0, 51, 0, 4, 2],
+				[42, 0, 0, 54, 6, 2],
+				[0, 0, 53, 55, 8, 2],
+				[44, 0, 54, 0, 10, 2],// 55
+			];
+
+		// Event listener for keyboard
+    window.addEventListener("keydown", function(e){
+        switch( e.keyCode ) {
+						case 67: // C
+							if(selectedCamera == camera){
+								selectedCamera = camera2;
+							} else selectedCamera = camera;
+							break;
+            case 38:	// upp
+                camera.lookAt(0,0,-200);
+                break;
+            case 40: // niður
+                camera.lookAt(0,0,200);
+                break;
+            case 87:	// W
+                break;
+						case 65:	// A
+							switch (dir) {
+								case 4:
+									if(mapGrid[next-1][0] != 0){
+										newDir = 1;
+										if (stopped) {
+											updatedDir = true;
+										}
+									}
+									break;
+								case 3:
+									if(mapGrid[next-1][1] != 0){
+										newDir = 2;
+										if (stopped) {
+											updatedDir = true;
+										}
+									}
+									break;
+								case 2:
+									if(mapGrid[next-1][3] != 0){
+										newDir = 4;
+										if (stopped) {
+											updatedDir = true;
+										}
+									}
+									break;
+								case 1:
+									if(mapGrid[next-1][2] != 0){
+										newDir = 3;
+										if (stopped) {
+											updatedDir = true;
+										}
+									}
+									break;
+								default:
+									break;
+								}
+		            break;
+						case 83:	// S
+						switch (dir) {
+							case 4:
+								dir = 3;
+								newDir = 3;
+								rotateCams();
+								var temp = next;
+								next = rev;
+								rev = temp;
+								if (stopped) {
+									updatedDir = true;
+								}
+								break;
+							case 3:
+								dir = 4;
+								newDir = 4;
+								rotateCams();
+								var temp = next;
+								next = rev;
+								rev = temp;
+								if (stopped) {
+									updatedDir = true;
+								}
+								break;
+							case 2:
+								dir = 1;
+								newDir = 1;
+								rotateCams();
+								var temp = next;
+								next = rev;
+								rev = temp;
+								if (stopped) {
+									updatedDir = true;
+								}
+								break;
+							case 1:
+								dir = 2;
+								newDir = 2;
+								rotateCams();
+								var temp = next;
+								next = rev;
+								rev = temp;
+								if (stopped) {
+									updatedDir = true;
+								}
+								break;
+							default:
+								break;
+							}
+				        break;
+						case 68:	// D
+						switch (dir) {
+							case 4:
+								if(mapGrid[next-1][1] != 0){
+									newDir = 2;
+									if (stopped) {
+										updatedDir = true;
+									}
+								}
+								break;
+							case 3:
+								if(mapGrid[next-1][0] != 0){
+									newDir = 1;
+									if (stopped) {
+										updatedDir = true;
+									}
+								}
+								break;
+							case 2:
+								if(mapGrid[next-1][2] != 0){
+									newDir = 3;
+									if (stopped) {
+										updatedDir = true;
+									}
+								}
+								break;
+							case 1:
+								if(mapGrid[next-1][3] != 0){
+									newDir = 4;
+									if (stopped) {
+										updatedDir = true;
+									}
+								}
+								break;
+							default:
+								break;
+							}
+					      break;
+            default:
+							break;
+        }
+    } );
+
+			// smíða heim
+			const buildMap = function(h){
+				for (var i = 0; i < mapWalls.length; i++) {
+					var geometry = new THREE.BoxGeometry(mapWalls[i][0],h,mapWalls[i][1]);
+					var material = new THREE.MeshPhongMaterial( { color: 0x0000FF } );
+					var cube = new THREE.Mesh( geometry, material );
+								cube.position.x += mapWalls[i][2];
+								cube.position.z += mapWalls[i][3];
+								cube.position.y -= 1 - h;
+					scene.add( cube );
+				}
+			}
+			buildMap(0.9);
+
+      // Búa til kúlu með Phong áferð og bæta í sviðsnetið
+			const ballGeometry = new THREE.SphereGeometry( 0.5, 20, 20 );
+			const ballMaterial = new THREE.MeshPhongMaterial( { color: 0xfdff00 } );
+			const ball = new THREE.Mesh( ballGeometry, ballMaterial );
+			scene.add( ball );
+
+			// búa til kúlu og sívaling fyrir
+			const ghost1Geometry = new THREE.CylinderGeometry( 0.5, 0.5, 0.5, 16);
+			const ghost1Material = new THREE.MeshPhongMaterial( { color: 0xFF0000 } );
+			const ghost1 = new THREE.Mesh( ghost1Geometry, ghost1Material );
+			scene.add( ghost1 );
+			ghost1.position.z -= 2;
+			ghost1.position.y -= 0.1
+
+			const ghost2Geometry = new THREE.SphereGeometry( 0.5, 20, 20 );
+			const ghost2Material = new THREE.MeshPhongMaterial( { color: 0xFF0000 } );
+			const ghost2 = new THREE.Mesh( ghost2Geometry, ghost2Material );
+			scene.add( ghost2 );
+			ghost2.position.z -= 2;
+			ghost2.position.y += 0.1
+
+
+			var coins = [];
+			for (var i = 0; i < mapGrid.length; i++) {
+				var coinGeometry;
+				if(i == 0 || i == 10 || i == 44 || i == 54){
+					coinGeometry = new THREE.SphereGeometry( 0.1, 20, 20 );
+					isPowerupUsed.push(false);
+				}
+				else {
+					coinGeometry = new THREE.SphereGeometry( 0.05, 20, 20 );
+					isPowerupUsed.push(true);
+				}
+					const coinMaterial = new THREE.MeshPhongMaterial( { color: 0xfdff00 } );
+					const coin = new THREE.Mesh( coinGeometry, coinMaterial );
+					coins.push(coin);
+					if(i > 28 || i < 26){
+						scene.add( coins[i] );
+					}
+					coin.position.x = mapGrid[i][gridX];
+					coin.position.z = mapGrid[i][gridZ];
+			}
+			scene.remove(coins[38]);
+
+
+
+      // Búa til sléttu með Phong áferð
+      const planeGeometry = new THREE.PlaneGeometry( 22, 10);
+  		const planeMaterial = new THREE.MeshPhongMaterial( { color: 0x222222 } );
+      const plane = new THREE.Mesh( planeGeometry, planeMaterial );
+      plane.rotation.x = -0.5 * Math.PI;
+      plane.position.set(0, -0.5, -2);
+      scene.add( plane );
+
+
+
+      // Skilgreina ljósgjafa og bæta honum í sviðsnetið
+      const light = new THREE.DirectionalLight(0xFFFFFF, 1);
+      light.position.set(2, 4, 1);
+      scene.add(light);
+
+			// Snúa myndavélar
+			const rotateCams = function(){
+				switch (dir) {
+					case 1:
+						camera.lookAt(0,0,-200);
+						camera2.lookAt(0,0,-200);
+						camera.position.z = ball.position.z + 2;
+						camera2.position.z = ball.position.z - 0.5;
+						camera.position.x = ball.position.x;
+						camera2.position.x = ball.position.x;
+						break;
+
+			 		case 2:
+						camera.lookAt(0,0,200);
+						camera2.lookAt(0,0,200);
+						camera.position.z = ball.position.z - 2;
+						camera2.position.z = ball.position.z + 0.5;
+						camera.position.x = ball.position.x;
+						camera2.position.x = ball.position.x;
+						break;
+
+					case 3:
+						camera.lookAt(-200,0,0);
+						camera2.lookAt(-200,0,0);
+						camera.position.x = ball.position.x + 2;
+						camera2.position.x = ball.position.x - 0.5;
+						camera.position.z = ball.position.z;
+						camera2.position.z = ball.position.z;
+						break;
+
+					case 4:
+						camera.lookAt(200,0,0);
+						camera2.lookAt(200,0,0);
+						camera.position.x = ball.position.x - 2;
+						camera2.position.x = ball.position.x + 0.5;
+						camera.position.z = ball.position.z;
+						camera2.position.z = ball.position.z;
+						break;
+				default:
+						break;
+				}
+			}
+
+			// Hreyfa pac-man
+			const moveBall = function(){
+				switch(dir) {
+            case 4:
+							if(!stopped){
+								if(mapGrid[next-1][gridX] > ball.position.x){
+									ball.position.x += pmSpeed;
+									camera.position.x += pmSpeed;
+									camera2.position.x += pmSpeed;
+
+								}
+								else {
+									ball.position.x = mapGrid[next-1][gridX];
+									nextReached();
+								}
+							}
+							else if(updatedDir){
+								updateDir();
+							}
+							break;
+
+						case 3:
+							if(!stopped){
+								if(mapGrid[next-1][gridX] < ball.position.x){
+									ball.position.x += -pmSpeed;
+									camera.position.x += -pmSpeed;
+									camera2.position.x += -pmSpeed;
+								}
+								else {
+									ball.position.x = mapGrid[next-1][gridX];
+									nextReached();
+								}
+							}
+							else if(updatedDir){
+								updateDir();
+							}
+							break;
+
+						case 2:
+							if(!stopped){
+								if(mapGrid[next-1][gridZ] > ball.position.z){
+									ball.position.z += pmSpeed;
+									camera.position.z += pmSpeed;
+									camera2.position.z += pmSpeed;
+								}
+								else {
+									ball.position.z = mapGrid[next-1][gridZ];
+									nextReached();
+								}
+							}
+							else if(updatedDir){
+								updateDir();
+							}
+							break;
+
+						case 1:
+							if(!stopped){
+								if(mapGrid[next-1][gridZ] < ball.position.z){
+									ball.position.z += -pmSpeed;
+									camera.position.z += -pmSpeed;
+									camera2.position.z += -pmSpeed;
+								}
+								else {
+									ball.position.z = mapGrid[next-1][gridZ];
+									nextReached();
+								}
+							}
+							else if(updatedDir){
+								updateDir();
+							}
+							break;
+
+						case 0:
+							break;
+        }
+			}
+
+			// stöðvar leik
+			const isGameOver = function(){
+				if (currGhost == curr) {
+					gameOver = true;
+					scoreDiv.textcontent = "Score: " + score + " GAME OVER";
+				}
+			}
+
+			// virkir hraða.
+			const superpower = function(){
+				pmSpeed = 0.12;
+				sleep(5000).then(() => {pmSpeed = 0.04;});
+			}
+
+			// Frækvæmir bið og síðan er gert eitthvað.
+			const sleep = function(ms){
+  			return new Promise(resolve => setTimeout(resolve, ms));
+			}
+
+			// Þegar næsta hnút í grindinn er náð...
+			const nextReached = function(){
+				if(score == 54){
+
+				}
+				scene.remove(coins[next-1]);
+				if(next == 1 || next == 11 || next == 45 || next == 55){
+					if (!isPowerupUsed[next-1]) {
+						isPowerupUsed[next-1] = true;
+						superpower();
+					}
+				}
+				score +=1;
+				scoreDiv.textContent = "Score: " + score;
+				rev = curr;
+				curr = next;
+				dir = newDir;
+				newDir = dir;
+				next = mapGrid[curr-1][dir-1];
+				if(next == 0){
+					stopped = true;
+					next = curr;
+				}
+				rotateCams();
+			}
+
+			// uppfæra áttina sem pac-man fer í.
+			const updateDir = function(){
+				dir = newDir;
+				newDir = dir;
+				next = mapGrid[curr-1][dir-1];
+				rotateCams();
+				stopped = false;
+				updatedDir = false;
+			}
+
+			// uppfæra áttina sem draugurinn fer í.
+			const ghostNewDir = function(){
+				var rand = Math.ceil(Math.random()*4);
+				while (mapGrid[currGhost-1][rand-1] == 0) {
+					rand = Math.ceil(Math.random()*4);
+				}
+				dirGhost = rand;
+			}
+
+			// Hreyfifall fyrir draug
+			const moveGhosts = function(){
+				for (var i = 0; i < 1; i++) {
+					switch (dirGhost) {
+						case 1:
+							if (mapGrid[nextGhost-1][gridZ] < ghost1.position.z) {
+								ghost1.position.z += -gSpeed;
+								ghost2.position.z += -gSpeed;
+								isGameOver();
+							}
+							else {
+								currGhost = nextGhost;
+								ghostNewDir();
+								if(mapGrid[currGhost-1][dirGhost-1] != 0){
+									nextGhost = mapGrid[currGhost-1][dirGhost-1];
+								}
+								isGameOver();
+							}
+							break;
+
+						case 2:
+							if (mapGrid[nextGhost-1][gridZ] > ghost1.position.z) {
+								ghost1.position.z += gSpeed;
+								ghost2.position.z += gSpeed;
+								isGameOver();
+							}
+							else {
+								currGhost = nextGhost;
+								ghostNewDir();
+								if(mapGrid[currGhost-1][dirGhost-1] != 0){
+									nextGhost = mapGrid[currGhost-1][dirGhost-1];
+								}
+								isGameOver();
+							}
+							break;
+
+						case 3:
+							if (mapGrid[nextGhost-1][gridX] < ghost1.position.x) {
+								ghost1.position.x += -gSpeed;
+								ghost2.position.x += -gSpeed;
+								isGameOver();
+							}
+							else {
+								currGhost = nextGhost;
+								ghostNewDir();
+								if(mapGrid[currGhost-1][dirGhost-1] != 0){
+									nextGhost = mapGrid[currGhost-1][dirGhost-1];
+								}
+								isGameOver();
+							}
+							break;
+
+						case 4:
+							if (mapGrid[nextGhost-1][gridZ] > ghost1.position.x) {
+								ghost1.position.x += gSpeed;
+								ghost2.position.x += gSpeed;
+								isGameOver();
+							}
+							else {
+								currGhost = nextGhost;
+								ghostNewDir();
+								if(mapGrid[currGhost-1][dirGhost-1] != 0){
+									nextGhost = mapGrid[currGhost-1][dirGhost-1];
+								}
+								isGameOver();
+							}
+							break;
+						default:
+
+					}
+				}
+			}
+
+			// Hreyfifall
+			const animate = function() {
+				requestAnimationFrame( animate );
+				if(!gameOver){
+					moveBall();
+					moveGhosts();
+				}
+				renderer.render( scene, selectedCamera );
+			};
+
+			animate();
+		</script>
+	</body>
+</html>
